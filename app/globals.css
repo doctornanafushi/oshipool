@@ -65,3 +65,21 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .sim label { font-size: 13px; color: var(--muted); display: block; margin: 10px 0 4px; }
 .ghost { background: transparent; border: 1px solid var(--line); color: var(--text); padding: 8px 14px; border-radius: 999px; cursor: pointer; }
 .muted { color: var(--muted); }
+
+/* 来場証明 */
+.pass {
+  margin: 0 0 16px; padding: 12px 14px; border-radius: 12px; border: 1px dashed var(--line);
+  background: var(--panel); display: grid; gap: 8px; font-size: 14px;
+}
+.pass.ok { border: 1px solid #3ddc97; }
+.pass.ok b { color: #3ddc97; }
+.pass input {
+  width: 100%; background: #0f0d18; color: var(--text); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 10px; font-family: ui-monospace, monospace; font-size: 13px;
+}
+.pass .err { color: #ff7a7a; }
+.okText { color: #3ddc97; font-weight: 700; }
+.modeRow { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin: 0 0 14px; }
+.switch { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; font-weight: 600; font-size: 14px; }
+.switch input { width: 18px; height: 18px; accent-color: var(--accent); }
+.switch.disabled { opacity: .5; cursor: not-allowed; }

@@ -3,6 +3,7 @@
 // 使い方:
 //   npm run seed            … 実行（初回は資金係ウォレットを作って終了）
 //   npm run seed -- --dry   … 何も送らずに計画だけ表示
+//   npm run seed -- --attendees … 「会場で来場証明を受け取った本物の来場者」の投げ銭を追加
 //
 // しくみ:
 //   「資金係（funder）」ウォレットが、ファンごとに新しいウォレットを作り、
@@ -28,18 +29,29 @@ import {
   clusterApiUrl,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
-import { ARTISTS, MEMO_PREFIX, MEMO_PROGRAM_ID } from "../lib/config.ts";
+import { ARTISTS, EVENT, MEMO_PREFIX, MEMO_PROGRAM_ID } from "../lib/config.ts";
+import { issuePass } from "../lib/pass.ts";
+import { loadVenueKey } from "./venue-key.mts";
 
 // ---- ここを書き換えればシナリオを変えられる ----
-// 3組とも「直接の合計は0.1 SOL」で同じ。違うのは応援した人数だけ。
-const PLAN = [
+type Step = { artist: string; fans: number; each: number; verified?: boolean };
+
+// 通常: 3組とも「直接の合計は0.1 SOL」で同じ。違うのは応援した人数だけ。（来場証明なし）
+const PLAN_DEFAULT: Step[] = [
   { artist: "lumina", fans: 1, each: 0.1 }, //   大口1人
   { artist: "kagerou", fans: 20, each: 0.005 }, // 小口20人
   { artist: "shirokuma", fans: 5, each: 0.02 }, // 中口5人
 ];
+
+// --attendees: 会場で来場証明を受け取った来場者の投げ銭（少額）
+const PLAN_ATTENDEES: Step[] = [
+  { artist: "shirokuma", fans: 6, each: 0.005, verified: true },
+  { artist: "lumina", fans: 2, each: 0.005, verified: true },
+];
 // ------------------------------------------------
 
 const DRY = process.argv.includes("--dry");
+const PLAN = process.argv.includes("--attendees") ? PLAN_ATTENDEES : PLAN_DEFAULT;
 const FUNDER_PATH = path.join(process.cwd(), "scripts", "funder.json");
 const RPC = process.env.NEXT_PUBLIC_RPC_URL || clusterApiUrl("devnet");
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -66,7 +78,10 @@ async function main() {
   console.log("=== 投げ銭シナリオ ===");
   for (const p of PLAN) {
     const name = ARTISTS.find((a) => a.id === p.artist)?.name ?? p.artist;
-    console.log(`  ${name}: ${p.fans}人 × ${p.each} SOL = ${(p.fans * p.each).toFixed(3)} SOL`);
+    console.log(
+      `  ${name}: ${p.fans}人 × ${p.each} SOL = ${(p.fans * p.each).toFixed(3)} SOL` +
+        (p.verified ? "（来場証明あり）" : "")
+    );
   }
   console.log(`  合計: ${needed().toFixed(3)} SOL（＋手数料 少々）\n`);
   if (DRY) return;
@@ -82,6 +97,8 @@ async function main() {
     return;
   }
 
+  const venue = PLAN.some((p) => p.verified) ? loadVenueKey() : null;
+
   let n = 0;
   const total = PLAN.reduce((a, p) => a + p.fans, 0);
   for (const p of PLAN) {
@@ -91,13 +108,16 @@ async function main() {
 
     for (let i = 0; i < p.fans; i++) {
       const fan = Keypair.generate();
+      // 来場者なら、会場がこのファンのアドレスに来場証明を発行してメモに添える
+      const pass =
+        p.verified && venue ? ":" + issuePass(venue.secretKey, EVENT.id, fan.publicKey.toBase58()) : "";
       const tx = new Transaction().add(
         SystemProgram.transfer({ fromPubkey: funder.publicKey, toPubkey: fan.publicKey, lamports }),
         SystemProgram.transfer({ fromPubkey: fan.publicKey, toPubkey: new PublicKey(artist.wallet), lamports }),
         new TransactionInstruction({
           programId: new PublicKey(MEMO_PROGRAM_ID),
           keys: [{ pubkey: fan.publicKey, isSigner: true, isWritable: false }],
-          data: Buffer.from(MEMO_PREFIX + artist.id, "utf8"),
+          data: Buffer.from(MEMO_PREFIX + artist.id + pass, "utf8"),
         })
       );
       tx.feePayer = funder.publicKey;
@@ -107,7 +127,9 @@ async function main() {
         try {
           const sig = await sendAndConfirmTransaction(conn, tx, [funder, fan]);
           n++;
-          console.log(`[${n}/${total}] ${artist.name} ← ${p.each} SOL  ${sig.slice(0, 12)}…`);
+          console.log(
+            `[${n}/${total}] ${artist.name} ← ${p.each} SOL${pass ? " ✓来場証明" : ""}  ${sig.slice(0, 12)}…`
+          );
           break;
         } catch (e) {
           if (attempt >= 3) throw e;

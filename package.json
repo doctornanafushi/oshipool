@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "seed": "node --experimental-strip-types --no-warnings scripts/seed.mts"
+    "seed": "node --experimental-strip-types --no-warnings scripts/seed.mts",
+    "pass": "node --experimental-strip-types --no-warnings scripts/pass.mts"
   },
   "keywords": [],
   "author": "",
@@ -16,10 +17,12 @@
     "@solana/wallet-adapter-react": "^0.15.40",
     "@solana/wallet-adapter-react-ui": "^0.9.40",
     "@solana/web3.js": "^1.99.0",
+    "bs58": "^6.0.0",
     "buffer": "^6.0.3",
     "next": "^15.5.27",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
