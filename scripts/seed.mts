@@ -14,7 +14,7 @@
 //
 // ※ 1人が大量のウォレットを作って投げ銭する、という点で
 //   これは二次ファンディングに対する「シビル攻撃」そのもの。
-//   → 対策が案C（来場証明の電子署名）。ピッチのネタにどうぞ。
+//   → 対策は来場証明（lib/pass.ts）。npm run seed -- --attendees で比較できる。
 
 import fs from "node:fs";
 import path from "node:path";
